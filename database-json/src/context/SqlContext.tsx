@@ -3,7 +3,7 @@ import React, { createContext, useState, ReactNode } from "react";
 type SqlState = {
   query: string;
   results: any;
-  runQuery: (query: string) => void;
+  runQuery: (query: string, database: string) => void;
 };
 
 const initialContext: Partial<SqlState> = {
@@ -22,12 +22,12 @@ export const SqlProvider: React.FC<SqlProviderProps> = ({ children }) => {
   const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<any>(null);
 
-  const runQuery = async (sqlQuery: string) => {
+  const runQuery = async (sqlQuery: string, database: string) => {
     setQuery(sqlQuery);
-    // Call your API here and set the results
+
     const response = await fetch("YOUR_API_ENDPOINT", {
       method: "POST",
-      body: JSON.stringify({ query: sqlQuery }),
+      body: JSON.stringify({ query: sqlQuery, database }), // Added the 'database' property
       headers: {
         "Content-Type": "application/json",
       },
