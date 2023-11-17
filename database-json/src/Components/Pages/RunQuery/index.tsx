@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { Dropdown, Row, Col } from "react-bootstrap";
+import { Dropdown, Row, Col, Table, Form } from "react-bootstrap";
 import AceEditor from "react-ace";
 import "brace/mode/sql";
 import "brace/theme/tomorrow_night_eighties";
@@ -8,23 +8,77 @@ import "brace/ext/searchbox";
 import { SqlContext } from "../../../context/SqlContext";
 import { QueryContainer, StyledButton, StyledDropdown } from "./styles";
 import ace from "ace-builds/src-noconflict/ace";
+interface ResultRow {
+  [key: string]: any;
+}
 
 const RunQuery: React.FC = () => {
   const langTools = ace.require("ace/ext/language_tools");
 
-  const { runQuery } = useContext(SqlContext);
-  const [inputQuery, setInputQuery] = useState("");
-  const [selectedDB, setSelectedDB] = useState("DefaultDB");
+  const {
+    runQuery,
+    results,
+    message,
+    hash: contextHash,
+    setHash,
+  } = useContext(SqlContext);
+  const [selectedDB, setSelectedDB] = useState<string>("Select Database");
+  const [inputQuery, setInputQuery] = useState<string>("");
+  const [inputHash, setInputHash] = useState<string>(contextHash || "");
 
-  const databases = ["Database1", "Database2", "Database3"];
+  const handleInputChange = (newValue: string) => {
+    const transformedValue = capitalizeSQLKeywords(newValue);
+    setInputQuery(transformedValue);
+  };
+
+  const handleHashChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setInputHash(event.target.value);
+  };
 
   const handleRunQuery = () => {
+    const hash = inputHash || "dummy_ipfs_hash";
+    // Check if runQuery is defined
     if (runQuery) {
-      runQuery(inputQuery, selectedDB);
+      runQuery(inputQuery, selectedDB, hash);
     } else {
-      console.error("runQuery is not defined in the context.");
+      console.error("runQuery function is undefined");
+      // Handle the error as needed
     }
   };
+  React.useEffect(() => {
+    if (contextHash) {
+      setInputHash(contextHash);
+    }
+  }, [contextHash]);
+  const renderTable = () => {
+    if (results && results.length > 0) {
+      const columns = Object.keys(results[0]);
+      return (
+        <Table striped bordered hover>
+          <thead>
+            <tr>
+              {columns.map((col, index) => (
+                <th key={index}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((row: ResultRow, rowIndex: number) => (
+              <tr key={rowIndex}>
+                {columns.map((col, colIndex) => (
+                  <td key={colIndex}>{row[col]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      );
+    } else if (message) {
+      return <p>{message}</p>;
+    }
+    return null;
+  };
+
   const sqlKeywords = [
     "ADD",
     "ALL",
@@ -120,33 +174,9 @@ const RunQuery: React.FC = () => {
   };
 
   // Inside your RunQuery component
-  const handleInputChange = (newValue: string) => {
-    const transformedValue = capitalizeSQLKeywords(newValue);
-    setInputQuery(transformedValue);
-  };
 
   return (
     <QueryContainer>
-      <Row className="mb-4">
-        <Col xs={12} sm={4}>
-          <StyledDropdown
-            onSelect={(e) => {
-              if (typeof e === "string") {
-                setSelectedDB(e);
-              }
-            }}
-          >
-            <Dropdown.Toggle variant="secondary">{selectedDB}</Dropdown.Toggle>
-            <Dropdown.Menu>
-              {databases.map((db) => (
-                <Dropdown.Item key={db} eventKey={db}>
-                  {db}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </StyledDropdown>
-        </Col>
-      </Row>
       <Row className="mb-4">
         <Col xs={12}>
           <AceEditor
@@ -172,12 +202,25 @@ const RunQuery: React.FC = () => {
           />
         </Col>
       </Row>
+      <Row className="mb-4">
+        <Col xs={12}>
+          <Form.Control
+            type="text"
+            placeholder="Enter hash or leave empty for default"
+            value={inputHash}
+            onChange={handleHashChange}
+          />
+        </Col>
+      </Row>
       <Row>
         <Col xs={12}>
           <StyledButton variant="secondary" onClick={handleRunQuery}>
             Run Query
           </StyledButton>
         </Col>
+      </Row>
+      <Row>
+        <Col xs={12}>{renderTable()}</Col>
       </Row>
     </QueryContainer>
   );
